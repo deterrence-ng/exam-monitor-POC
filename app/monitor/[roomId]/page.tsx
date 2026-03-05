@@ -6,7 +6,6 @@ import {
     Room,
     RoomEvent,
     RemoteParticipant,
-    DataPacket_Kind,
 } from "livekit-client";
 import CandidatePanel from "@/app/components/CandidatePanel";
 import WarningModal from "@/app/components/WarningModal";
@@ -27,6 +26,7 @@ export default function MonitorPage() {
 
     const [room] = useState(() => new Room());
     const [connected, setConnected] = useState(false);
+    const [audioBlocked, setAudioBlocked] = useState(false);
     const [candidates, setCandidates] = useState<RemoteParticipant[]>([]);
     const [micStates, setMicStates] = useState<Record<string, boolean>>({});
     // warn modal state
@@ -60,6 +60,10 @@ export default function MonitorPage() {
                 room.on(RoomEvent.ParticipantDisconnected, syncCandidates);
                 room.on(RoomEvent.TrackSubscribed, syncCandidates);
                 room.on(RoomEvent.DataReceived, handleDataReceived);
+                // Detect when browser blocks audio autoplay
+                room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+                    setAudioBlocked(!room.canPlaybackAudio);
+                });
 
                 await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token, {
                     autoSubscribe: true,
@@ -67,6 +71,8 @@ export default function MonitorPage() {
 
                 setConnected(true);
                 syncCandidates();
+                // Check immediately after connect in case audio is already blocked
+                setAudioBlocked(!room.canPlaybackAudio);
             } catch (err: unknown) {
                 setError(err instanceof Error ? err.message : "Failed to connect");
             }
@@ -161,6 +167,42 @@ export default function MonitorPage() {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+            {/* Audio unblock banner — shown when browser blocks autoplay */}
+            {audioBlocked && (
+                <div style={{
+                    position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+                    zIndex: 200,
+                    background: "var(--accent)",
+                    color: "#fff",
+                    padding: "14px 24px",
+                    borderRadius: "12px",
+                    display: "flex", alignItems: "center", gap: "14px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                }}>
+                    <span>🔇 Audio blocked by browser</span>
+                    <button
+                        id="enable-audio"
+                        onClick={async () => {
+                            await room.startAudio();
+                            setAudioBlocked(false);
+                        }}
+                        style={{
+                            background: "#fff",
+                            color: "var(--accent)",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 16px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontSize: "13px",
+                        }}
+                    >
+                        Enable Audio
+                    </button>
+                </div>
+            )}
             {/* Header */}
             <header style={{
                 padding: "0 24px",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { RemoteParticipant, Track, TrackPublication } from "livekit-client";
 
 interface CandidatePanelProps {
@@ -24,30 +24,46 @@ export default function CandidatePanel({
 }: CandidatePanelProps) {
     const cameraRef = useRef<HTMLVideoElement>(null);
     const screenRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
     const [cameraTrack, setCameraTrack] = useState<TrackPublication | null>(null);
     const [screenTrack, setScreenTrack] = useState<TrackPublication | null>(null);
+    const [audioTrack, setAudioTrack] = useState<TrackPublication | null>(null);
     const [speaking, setSpeaking] = useState(false);
 
-    const syncTracks = () => {
+    // Rebuilds track state from scratch each call — handles both subscribe AND unsubscribe
+    const syncTracks = useCallback(() => {
+        let cam: TrackPublication | null = null;
+        let screen: TrackPublication | null = null;
+        let audio: TrackPublication | null = null;
+
         for (const pub of participant.trackPublications.values()) {
-            if (pub.track && pub.kind === "video") {
-                if (pub.source === Track.Source.Camera) setCameraTrack(pub);
-                if (pub.source === Track.Source.ScreenShare) setScreenTrack(pub);
+            // pub.track is non-null only when the local client is subscribed to the track
+            if (!pub.track) continue;
+            if (pub.kind === "video") {
+                if (pub.source === Track.Source.Camera) cam = pub;
+                if (pub.source === Track.Source.ScreenShare) screen = pub;
+            } else if (pub.kind === "audio") {
+                audio = pub;
             }
         }
-    };
+
+        setCameraTrack(cam);
+        setScreenTrack(screen);
+        setAudioTrack(audio);
+    }, [participant]);
 
     useEffect(() => {
         syncTracks();
         participant.on("trackSubscribed", syncTracks);
         participant.on("trackUnsubscribed", syncTracks);
-        participant.on("isSpeakingChanged", (speaking: boolean) => setSpeaking(speaking));
+        participant.on("isSpeakingChanged", (s: boolean) => setSpeaking(s));
         return () => {
             participant.off("trackSubscribed", syncTracks);
             participant.off("trackUnsubscribed", syncTracks);
         };
-    }, [participant]);
+    }, [participant, syncTracks]);
 
+    // Attach camera video
     useEffect(() => {
         if (cameraTrack?.videoTrack && cameraRef.current) {
             cameraTrack.videoTrack.attach(cameraRef.current);
@@ -55,12 +71,21 @@ export default function CandidatePanel({
         }
     }, [cameraTrack]);
 
+    // Attach screen share video
     useEffect(() => {
         if (screenTrack?.videoTrack && screenRef.current) {
             screenTrack.videoTrack.attach(screenRef.current);
             return () => { screenTrack.videoTrack?.detach(); };
         }
     }, [screenTrack]);
+
+    // Attach audio — element must NOT be muted
+    useEffect(() => {
+        if (audioTrack?.audioTrack && audioRef.current) {
+            audioTrack.audioTrack.attach(audioRef.current);
+            return () => { audioTrack.audioTrack?.detach(); };
+        }
+    }, [audioTrack]);
 
     return (
         <div style={{
@@ -73,7 +98,10 @@ export default function CandidatePanel({
             transition: "border-color 0.3s",
             boxShadow: speaking ? "0 0 20px rgba(34,197,94,0.15)" : "var(--shadow-card)",
         }}>
-            {/* Screen share — primary view (takes most space) */}
+            {/* Hidden audio element — NOT muted, used to play candidate mic audio */}
+            <audio ref={audioRef} autoPlay style={{ display: "none" }} />
+
+            {/* Screen share — primary view */}
             <div style={{ position: "relative", aspectRatio: "16/9", background: "#0a0a12" }}>
                 {screenTrack ? (
                     <video
@@ -119,7 +147,6 @@ export default function CandidatePanel({
 
             {/* Controls footer */}
             <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: "8px", borderTop: "1px solid var(--border-subtle)" }}>
-                {/* Identity */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "13px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {participant.identity}
@@ -132,7 +159,6 @@ export default function CandidatePanel({
                     </div>
                 </div>
 
-                {/* Action buttons */}
                 <button
                     id={`warn-${participant.identity}`}
                     className="btn-danger"
