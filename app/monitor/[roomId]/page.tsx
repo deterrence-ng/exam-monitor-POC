@@ -26,7 +26,6 @@ export default function MonitorPage() {
 
     const [room] = useState(() => new Room());
     const [connected, setConnected] = useState(false);
-    const [audioBlocked, setAudioBlocked] = useState(false);
     const [myMicEnabled, setMyMicEnabled] = useState(false);
     const [candidates, setCandidates] = useState<RemoteParticipant[]>([]);
     const [micStates, setMicStates] = useState<Record<string, boolean>>({});
@@ -61,10 +60,6 @@ export default function MonitorPage() {
                 room.on(RoomEvent.ParticipantDisconnected, syncCandidates);
                 room.on(RoomEvent.TrackSubscribed, syncCandidates);
                 room.on(RoomEvent.DataReceived, handleDataReceived);
-                // Detect when browser blocks audio autoplay
-                room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
-                    setAudioBlocked(!room.canPlaybackAudio);
-                });
 
                 await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token, {
                     autoSubscribe: true,
@@ -72,8 +67,6 @@ export default function MonitorPage() {
 
                 setConnected(true);
                 syncCandidates();
-                // Check immediately after connect in case audio is already blocked
-                setAudioBlocked(!room.canPlaybackAudio);
             } catch (err: unknown) {
                 setError(err instanceof Error ? err.message : "Failed to connect");
             }
@@ -110,6 +103,7 @@ export default function MonitorPage() {
 
     const toggleMic = useCallback(
         async (identity: string) => {
+            room.startAudio().catch(() => { }); // silently attempt unblock on click
             const current = micStates[identity] ?? false;
             const action = current ? "revoke" : "grant";
             await fetch("/api/permission", {
@@ -124,6 +118,7 @@ export default function MonitorPage() {
 
     const sendWarning = useCallback(
         async (message: string) => {
+            room.startAudio().catch(() => { });
             if (!warnTarget) return;
             const payload = JSON.stringify({ type: "warning", message });
             const encoder = new TextEncoder();
@@ -137,6 +132,7 @@ export default function MonitorPage() {
 
     const sendChat = useCallback(
         async (text: string) => {
+            room.startAudio().catch(() => { });
             if (!chatTarget) return;
             const payload = JSON.stringify({ type: "chat", message: text, from: username });
             const encoder = new TextEncoder();
@@ -178,42 +174,6 @@ export default function MonitorPage() {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* Audio unblock banner — shown when browser blocks autoplay */}
-            {audioBlocked && (
-                <div style={{
-                    position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-                    zIndex: 200,
-                    background: "var(--accent)",
-                    color: "#fff",
-                    padding: "14px 24px",
-                    borderRadius: "12px",
-                    display: "flex", alignItems: "center", gap: "14px",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                }}>
-                    <span>🔇 Audio blocked by browser</span>
-                    <button
-                        id="enable-audio"
-                        onClick={async () => {
-                            await room.startAudio();
-                            setAudioBlocked(false);
-                        }}
-                        style={{
-                            background: "#fff",
-                            color: "var(--accent)",
-                            border: "none",
-                            borderRadius: "8px",
-                            padding: "8px 16px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            fontSize: "13px",
-                        }}
-                    >
-                        Enable Audio
-                    </button>
-                </div>
-            )}
             {/* Header */}
             <header style={{
                 padding: "0 24px",
@@ -275,8 +235,12 @@ export default function MonitorPage() {
                                 room={roomId}
                                 micEnabled={micStates[p.identity] ?? false}
                                 onToggleMic={() => toggleMic(p.identity)}
-                                onWarn={() => setWarnTarget(p)}
+                                onWarn={() => {
+                                    room.startAudio().catch(() => { });
+                                    setWarnTarget(p);
+                                }}
                                 onChat={() => {
+                                    room.startAudio().catch(() => { });
                                     setChatTarget(p);
                                     setUnread((prev) => ({ ...prev, [p.identity]: false }));
                                 }}
