@@ -27,6 +27,7 @@ export default function MonitorPage() {
     const [room] = useState(() => new Room());
     const [connected, setConnected] = useState(false);
     const [audioBlocked, setAudioBlocked] = useState(false);
+    const [myMicEnabled, setMyMicEnabled] = useState(false);
     const [candidates, setCandidates] = useState<RemoteParticipant[]>([]);
     const [micStates, setMicStates] = useState<Record<string, boolean>>({});
     // warn modal state
@@ -152,6 +153,16 @@ export default function MonitorPage() {
         [room, chatTarget, username]
     );
 
+    const toggleMyMic = useCallback(async () => {
+        try {
+            const nextState = !myMicEnabled;
+            await room.localParticipant.setMicrophoneEnabled(nextState);
+            setMyMicEnabled(nextState);
+        } catch (err) {
+            console.error("Failed to toggle monitor mic", err);
+        }
+    }, [room, myMicEnabled]);
+
     if (error) {
         return (
             <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -227,6 +238,13 @@ export default function MonitorPage() {
                     <span className="pill pill-muted">
                         {candidates.length} candidate{candidates.length !== 1 ? "s" : ""}
                     </span>
+                    <button
+                        onClick={toggleMyMic}
+                        className={`pill ${myMicEnabled ? "pill-success" : "pill-muted"}`}
+                        style={{ cursor: "pointer", border: "none", background: "var(--bg-card)" }}
+                    >
+                        {myMicEnabled ? "🎤 My Mic On" : "🔇 My Mic Off"}
+                    </button>
                     <a href="/" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Leave</a>
                 </div>
             </header>

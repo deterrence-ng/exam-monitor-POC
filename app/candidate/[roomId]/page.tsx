@@ -6,6 +6,7 @@ import {
     Room,
     RoomEvent,
     Track,
+    RemoteTrack,
     createLocalScreenTracks,
     createLocalVideoTrack,
 } from "livekit-client";
@@ -35,7 +36,11 @@ export default function CandidatePage() {
     const [chatInput, setChatInput] = useState("");
     const [unread, setUnread] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [audioBlocked, setAudioBlocked] = useState(false);
+    const [monitorAudioTrack, setMonitorAudioTrack] = useState<RemoteTrack | null>(null);
+
     const cameraRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
     const chatBottomRef = useRef<HTMLDivElement>(null);
 
     const handleDataReceived = useCallback(
@@ -71,10 +76,26 @@ export default function CandidatePage() {
                 const data = await res.json();
 
                 room.on(RoomEvent.DataReceived, handleDataReceived);
+                room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+                    if (track.kind === "audio") {
+                        setMonitorAudioTrack(track);
+                    }
+                });
+                room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+                    if (track.kind === "audio") {
+                        setMonitorAudioTrack(null);
+                    }
+                });
+                room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+                    setAudioBlocked(!room.canPlaybackAudio);
+                });
 
                 await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, data.token, {
                     autoSubscribe: true,
                 });
+
+                // Check immediately after connect
+                setAudioBlocked(!room.canPlaybackAudio);
 
                 // Start camera immediately, mic stays muted
                 await room.localParticipant.setCameraEnabled(true);
@@ -97,6 +118,14 @@ export default function CandidatePage() {
             return () => { camPub.videoTrack?.detach(); };
         }
     }, [cameraOn, room]);
+
+    // Attach monitor audio
+    useEffect(() => {
+        if (monitorAudioTrack && audioRef.current) {
+            monitorAudioTrack.attach(audioRef.current);
+            return () => { monitorAudioTrack.detach(); };
+        }
+    }, [monitorAudioTrack]);
 
     useEffect(() => {
         chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -138,6 +167,35 @@ export default function CandidatePage() {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+            <audio ref={audioRef} autoPlay style={{ display: "none" }} />
+
+            {/* Audio unblock banner */}
+            {audioBlocked && (
+                <div style={{
+                    position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+                    zIndex: 200,
+                    background: "var(--accent)", color: "#fff",
+                    padding: "14px 24px", borderRadius: "12px",
+                    display: "flex", alignItems: "center", gap: "14px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", fontSize: "14px", fontWeight: 500,
+                }}>
+                    <span>🔇 Audio blocked by browser</span>
+                    <button
+                        onClick={async () => {
+                            await room.startAudio();
+                            setAudioBlocked(false);
+                        }}
+                        style={{
+                            background: "#fff", color: "var(--accent)", border: "none",
+                            borderRadius: "8px", padding: "8px 16px", fontWeight: 700,
+                            cursor: "pointer", fontSize: "13px",
+                        }}
+                    >
+                        Enable Audio
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <header style={{
                 padding: "0 24px",
