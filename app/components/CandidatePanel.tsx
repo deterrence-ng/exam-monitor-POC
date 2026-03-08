@@ -10,7 +10,9 @@ interface CandidatePanelProps {
     onToggleMic: () => void;
     onWarn: () => void;
     onChat: () => void;
+    onTarget: () => void;
     hasUnread?: boolean;
+    isTarget?: boolean;
 }
 
 export default function CandidatePanel({
@@ -20,7 +22,9 @@ export default function CandidatePanel({
     onToggleMic,
     onWarn,
     onChat,
+    onTarget,
     hasUnread,
+    isTarget,
 }: CandidatePanelProps) {
     const cameraRef = useRef<HTMLVideoElement>(null);
     const screenRef = useRef<HTMLVideoElement>(null);
@@ -167,6 +171,16 @@ export default function CandidatePanel({
                     title="Send warning"
                 >
                     ⚠️
+                </button>
+
+                <button
+                    id={`target-${participant.identity}`}
+                    className={isTarget ? "btn-success" : "btn-ghost"}
+                    onClick={onTarget}
+                    style={{ padding: "7px 12px", fontSize: "11px", fontWeight: isTarget ? 600 : 400 }}
+                    title={isTarget ? "Currently talking to candidate" : "Talk to this candidate"}
+                >
+                    {isTarget ? "🗣️ Talking" : "🗣️ Talk"}
                 </button>
 
                 <button

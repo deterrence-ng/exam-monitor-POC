@@ -37,6 +37,7 @@ export default function CandidatePage() {
     const [chatInput, setChatInput] = useState("");
     const [unread, setUnread] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [monitorMuted, setMonitorMuted] = useState(true);
     const [monitorAudioTrack, setMonitorAudioTrack] = useState<RemoteTrack | null>(null);
 
     const cameraRef = useRef<HTMLVideoElement>(null);
@@ -61,10 +62,17 @@ export default function CandidatePage() {
                         { from: msg.from || "Monitor", text: msg.message, ts: Date.now() },
                     ]);
                     if (!chatOpen) setUnread(true);
+                } else if (msg.type === "monitor_target") {
+                    // Mute if the monitor isn't talking to "all" and isn't talking to this specific candidate
+                    if (msg.target === "all" || msg.target === username) {
+                        setMonitorMuted(false);
+                    } else {
+                        setMonitorMuted(true);
+                    }
                 }
             } catch { }
         },
-        [room, chatOpen]
+        [room, chatOpen, username]
     );
 
     useEffect(() => {
@@ -162,7 +170,7 @@ export default function CandidatePage() {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-            <audio ref={audioRef} autoPlay style={{ display: "none" }} />
+            <audio ref={audioRef} autoPlay muted={monitorMuted} style={{ display: "none" }} />
 
             {/* Header */}
             <header style={{

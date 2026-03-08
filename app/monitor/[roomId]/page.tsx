@@ -26,7 +26,7 @@ export default function MonitorPage() {
 
     const [room] = useState(() => new Room());
     const [connected, setConnected] = useState(false);
-    const [myMicEnabled, setMyMicEnabled] = useState(false);
+    const [audioTarget, setAudioTarget] = useState<"none" | "all" | string>("none");
     const [candidates, setCandidates] = useState<RemoteParticipant[]>([]);
     const [micStates, setMicStates] = useState<Record<string, boolean>>({});
     // warn modal state
@@ -149,15 +149,25 @@ export default function MonitorPage() {
         [room, chatTarget, username]
     );
 
-    const toggleMyMic = useCallback(async () => {
+    const toggleAudioTarget = useCallback(async (target: "none" | "all" | string) => {
         try {
-            const nextState = !myMicEnabled;
-            await room.localParticipant.setMicrophoneEnabled(nextState);
-            setMyMicEnabled(nextState);
+            room.startAudio().catch(() => { });
+
+            // If we're clicking the same target again, toggle it off ("none")
+            const nextTarget = audioTarget === target ? "none" : target;
+
+            // Enable mic if target is not "none", disable if "none"
+            await room.localParticipant.setMicrophoneEnabled(nextTarget !== "none");
+
+            // Broadcast the target to everyone so candidates can mute/unmute locally
+            const payload = JSON.stringify({ type: "monitor_target", target: nextTarget });
+            await room.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+
+            setAudioTarget(nextTarget);
         } catch (err) {
-            console.error("Failed to toggle monitor mic", err);
+            console.error("Failed to toggle monitor audio target", err);
         }
-    }, [room, myMicEnabled]);
+    }, [room, audioTarget]);
 
     if (error) {
         return (
@@ -199,11 +209,11 @@ export default function MonitorPage() {
                         {candidates.length} candidate{candidates.length !== 1 ? "s" : ""}
                     </span>
                     <button
-                        onClick={toggleMyMic}
-                        className={`pill ${myMicEnabled ? "pill-success" : "pill-muted"}`}
-                        style={{ cursor: "pointer", border: "none", background: "var(--bg-card)" }}
+                        onClick={() => toggleAudioTarget("all")}
+                        className={`pill ${audioTarget === "all" ? "pill-primary" : audioTarget === "none" ? "pill-muted" : "pill-success"}`}
+                        style={{ cursor: "pointer", border: "none" }}
                     >
-                        {myMicEnabled ? "🎤 My Mic On" : "🔇 My Mic Off"}
+                        {audioTarget === "none" ? "🔇 Muted" : audioTarget === "all" ? "📢 Broadcasting to All" : `🗣️ Talking to candidate`}
                     </button>
                     <a href="/" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Leave</a>
                 </div>
@@ -244,6 +254,8 @@ export default function MonitorPage() {
                                     setChatTarget(p);
                                     setUnread((prev) => ({ ...prev, [p.identity]: false }));
                                 }}
+                                onTarget={() => toggleAudioTarget(p.identity)}
+                                isTarget={audioTarget === p.identity}
                                 hasUnread={unread[p.identity]}
                             />
                         ))}
