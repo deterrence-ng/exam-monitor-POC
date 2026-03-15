@@ -3,7 +3,8 @@ export type DataMessageType =
     | { type: "mic_revoke" }
     | { type: "warning"; message: string }
     | { type: "chat"; message: string; from: string }
-    | { type: "monitor_target"; target: string };
+    | { type: "monitor_target"; target: string }
+    | { type: "mic_request"; from: string };
 
 export const MONITOR_IDENTITY_PREFIX = "monitor";
 

@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const at = new AccessToken(apiKey, apiSecret, {
         identity: username,
         ttl: 3600,
+        metadata: JSON.stringify({ role }),
     });
 
     if (role === "monitor") {

@@ -52,7 +52,12 @@ export default function HomePage() {
 
         {/* Role selector */}
         <div style={{ marginBottom: "20px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <label style={{
+            display: "block", fontSize: "12px",
+            fontWeight: 600, color: "var(--text-secondary)",
+            marginBottom: "10px", textTransform: "uppercase",
+            letterSpacing: "0.06em"
+          }}>
             Your Role
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -82,7 +87,12 @@ export default function HomePage() {
 
         {/* Room name */}
         <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <label style={{
+            display: "block", fontSize: "12px",
+            fontWeight: 600, color: "var(--text-secondary)",
+            marginBottom: "8px", textTransform: "uppercase",
+            letterSpacing: "0.06em"
+          }}>
             Room Name
           </label>
           <input
@@ -97,7 +107,12 @@ export default function HomePage() {
 
         {/* Display name */}
         <div style={{ marginBottom: "28px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <label style={{
+            display: "block", fontSize: "12px",
+            fontWeight: 600, color: "var(--text-secondary)",
+            marginBottom: "8px", textTransform: "uppercase",
+            letterSpacing: "0.06em"
+          }}>
             Display Name
           </label>
           <input

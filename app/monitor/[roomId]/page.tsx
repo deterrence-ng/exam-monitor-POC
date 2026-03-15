@@ -35,12 +35,20 @@ export default function MonitorPage() {
     const [chatTarget, setChatTarget] = useState<RemoteParticipant | null>(null);
     const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
     const [unread, setUnread] = useState<Record<string, boolean>>({});
+    const [micRequests, setMicRequests] = useState<Record<string, boolean>>({});
     const [error, setError] = useState<string | null>(null);
 
     // Sync candidates list (exclude monitor itself)
     const syncCandidates = useCallback(() => {
         const remotes = Array.from(room.remoteParticipants.values()).filter(
-            (p) => !p.identity.toLowerCase().startsWith("monitor")
+            (p) => {
+                let isMonitor = false;
+                try {
+                    const meta = JSON.parse(p.metadata || '{}');
+                    isMonitor = meta.role === "monitor";
+                } catch { }
+                return !isMonitor && !p.identity.toLowerCase().startsWith("monitor");
+            }
         );
         setCandidates(remotes);
     }, [room]);
@@ -95,6 +103,8 @@ export default function MonitorPage() {
                         [participant.identity]: [...(prev[participant.identity] || []), chatMsg],
                     }));
                     setUnread((prev) => ({ ...prev, [participant.identity]: true }));
+                } else if (msg.type === "mic_request") {
+                    setMicRequests((prev) => ({ ...prev, [msg.from]: true }));
                 }
             } catch { }
         },
@@ -112,6 +122,9 @@ export default function MonitorPage() {
                 body: JSON.stringify({ room: roomId, participantIdentity: identity, action }),
             });
             setMicStates((prev) => ({ ...prev, [identity]: !current }));
+            if (action === "grant") {
+                setMicRequests((prev) => ({ ...prev, [identity]: false }));
+            }
         },
         [micStates, roomId]
     );
@@ -257,6 +270,7 @@ export default function MonitorPage() {
                                 onTarget={() => toggleAudioTarget(p.identity)}
                                 isTarget={audioTarget === p.identity}
                                 hasUnread={unread[p.identity]}
+                                micRequested={micRequests[p.identity]}
                             />
                         ))}
                     </div>

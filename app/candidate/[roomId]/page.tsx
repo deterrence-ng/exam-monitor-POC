@@ -39,6 +39,7 @@ export default function CandidatePage() {
     const [error, setError] = useState<string | null>(null);
     const [monitorMuted, setMonitorMuted] = useState(true);
     const [monitorAudioTrack, setMonitorAudioTrack] = useState<RemoteTrack | null>(null);
+    const [micRequested, setMicRequested] = useState(false);
 
     const cameraRef = useRef<HTMLVideoElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -50,6 +51,7 @@ export default function CandidatePage() {
                 const msg: DataMessageType = JSON.parse(new TextDecoder().decode(payload));
                 if (msg.type === "mic_grant") {
                     setMicEnabled(true);
+                    setMicRequested(false);
                     room.localParticipant.setMicrophoneEnabled(true);
                 } else if (msg.type === "mic_revoke") {
                     setMicEnabled(false);
@@ -84,13 +86,25 @@ export default function CandidatePage() {
                 const data = await res.json();
 
                 room.on(RoomEvent.DataReceived, handleDataReceived);
-                room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
-                    if (track.kind === "audio") {
+                room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
+                    let isMonitor = false;
+                    try {
+                        const meta = JSON.parse(participant?.metadata || '{}');
+                        isMonitor = meta.role === "monitor";
+                    } catch { }
+
+                    if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
                         setMonitorAudioTrack(track);
                     }
                 });
-                room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: any, participant: RemoteParticipant) => {
-                    if (track.kind === "audio" && participant.identity.toLowerCase().startsWith("monitor")) {
+                room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
+                    let isMonitor = false;
+                    try {
+                        const meta = JSON.parse(participant?.metadata || '{}');
+                        isMonitor = meta.role === "monitor";
+                    } catch { }
+
+                    if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
                         setMonitorAudioTrack(null);
                     }
                 });
@@ -144,6 +158,12 @@ export default function CandidatePage() {
         } catch {
             // user cancelled or denied
         }
+    };
+
+    const requestMic = async () => {
+        const payload = JSON.stringify({ type: "mic_request", from: username });
+        await room.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        setMicRequested(true);
     };
 
     const sendChat = async () => {
@@ -276,10 +296,22 @@ export default function CandidatePage() {
                                             {micEnabled ? "Monitor has granted you speaking permission" : "Microphone disabled — waiting for monitor"}
                                         </div>
                                     </div>
-                                    <span className={`pill ${micEnabled ? "pill-success" : "pill-muted"}`}>
-                                        <span className={`dot ${micEnabled ? "dot-green" : "dot-red"}`} />
-                                        {micEnabled ? "Enabled" : "Disabled"}
-                                    </span>
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        {!micEnabled && !micRequested && (
+                                            <button className="btn-ghost" onClick={requestMic} style={{ padding: "6px 10px", fontSize: "12px" }}>
+                                                ✋ Request
+                                            </button>
+                                        )}
+                                        {!micEnabled && micRequested && (
+                                            <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                                                Requested…
+                                            </span>
+                                        )}
+                                        <span className={`pill ${micEnabled ? "pill-success" : "pill-muted"}`}>
+                                            <span className={`dot ${micEnabled ? "dot-green" : "dot-red"}`} />
+                                            {micEnabled ? "Enabled" : "Disabled"}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Identity */}

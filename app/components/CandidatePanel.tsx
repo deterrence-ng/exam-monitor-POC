@@ -13,6 +13,7 @@ interface CandidatePanelProps {
     onTarget: () => void;
     hasUnread?: boolean;
     isTarget?: boolean;
+    micRequested?: boolean;
 }
 
 export default function CandidatePanel({
@@ -25,6 +26,7 @@ export default function CandidatePanel({
     onTarget,
     hasUnread,
     isTarget,
+    micRequested,
 }: CandidatePanelProps) {
     const cameraRef = useRef<HTMLVideoElement>(null);
     const screenRef = useRef<HTMLVideoElement>(null);
@@ -160,6 +162,11 @@ export default function CandidatePanel({
                             <span className={`dot ${micEnabled ? "dot-green" : "dot-red"}`} />
                             {micEnabled ? "Mic On" : "Mic Off"}
                         </span>
+                        {micRequested && !micEnabled && (
+                            <span style={{ fontSize: "11px", color: "var(--accent)", fontStyle: "italic", animation: "pulse 1.5s infinite" }}>
+                                Hand raised ✋
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -185,12 +192,21 @@ export default function CandidatePanel({
 
                 <button
                     id={`mic-${participant.identity}`}
-                    className={micEnabled ? "btn-danger" : "btn-success"}
+                    className={micEnabled ? "btn-danger" : (micRequested ? "btn-primary" : "btn-success")}
                     onClick={onToggleMic}
-                    style={{ padding: "7px 12px", fontSize: "11px" }}
+                    style={{ padding: "7px 12px", fontSize: "11px", position: "relative" }}
                     title={micEnabled ? "Revoke mic" : "Grant mic"}
                 >
                     {micEnabled ? "🔇" : "🎤"}
+                    {micRequested && !micEnabled && (
+                        <span style={{
+                            position: "absolute", top: "-4px", right: "-4px",
+                            width: "10px", height: "10px",
+                            background: "var(--accent)",
+                            borderRadius: "50%",
+                            border: "2px solid var(--bg-card)",
+                        }} />
+                    )}
                 </button>
 
                 <button
