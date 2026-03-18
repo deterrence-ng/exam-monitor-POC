@@ -12,10 +12,8 @@ interface CandidatePanelProps {
     onChat: () => void;
     onTarget: () => void;
     onKick?: () => void;
-    onToggleExpand?: () => void;
     hasUnread?: boolean;
     isTarget?: boolean;
-    isExpanded?: boolean;
     micRequested?: boolean;
 }
 
@@ -28,10 +26,8 @@ export default function CandidatePanel({
     onChat,
     onTarget,
     onKick,
-    onToggleExpand,
     hasUnread,
     isTarget,
-    isExpanded,
     micRequested,
 }: CandidatePanelProps) {
     const cameraRef = useRef<HTMLVideoElement>(null);
@@ -85,7 +81,7 @@ export default function CandidatePanel({
             cameraTrack.videoTrack.attach(el);
             return () => { cameraTrack.videoTrack?.detach(el); };
         }
-    }, [cameraTrack]);
+    }, [cameraTrack, primaryView]);
 
     // Attach screen share video
     useEffect(() => {
@@ -94,7 +90,7 @@ export default function CandidatePanel({
             screenTrack.videoTrack.attach(el);
             return () => { screenTrack.videoTrack?.detach(el); };
         }
-    }, [screenTrack]);
+    }, [screenTrack, primaryView]);
 
     // Attach audio — element must NOT be muted
     useEffect(() => {
@@ -105,29 +101,16 @@ export default function CandidatePanel({
         }
     }, [audioTrack]);
 
-    const containerStyle: React.CSSProperties = isExpanded
-        ? {
-              position: "fixed",
-              top: "24px", left: "24px", right: "24px", bottom: "24px",
-              zIndex: 100,
-              background: "var(--bg-card)",
-              border: speaking ? "2px solid var(--success)" : "1px solid var(--border)",
-              borderRadius: "16px",
-              boxShadow: speaking ? "0 0 40px rgba(34,197,94,0.2)" : "0 10px 50px rgba(0,0,0,0.6)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-          }
-        : {
-              background: "var(--bg-card)",
-              border: speaking ? "1px solid var(--success)" : "1px solid var(--border)",
-              borderRadius: "16px",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              transition: "border-color 0.3s",
-              boxShadow: speaking ? "0 0 20px rgba(34,197,94,0.15)" : "var(--shadow-card)",
-          };
+    const containerStyle: React.CSSProperties = {
+        background: "var(--bg-card)",
+        border: speaking ? "1px solid var(--success)" : "1px solid var(--border)",
+        borderRadius: "16px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        transition: "border-color 0.3s",
+        boxShadow: speaking ? "0 0 20px rgba(34,197,94,0.15)" : "var(--shadow-card)",
+    };
 
     const EmptyView = ({ icon, text, isPip }: { icon: string; text?: string, isPip?: boolean }) => (
         <div style={{
@@ -145,18 +128,8 @@ export default function CandidatePanel({
             {/* Hidden audio element — NOT muted, used to play candidate mic audio */}
             <audio ref={audioRef} autoPlay style={{ display: "none" }} />
 
-            {/* Expander Button */}
-            <button
-                onClick={onToggleExpand}
-                className="btn-ghost"
-                style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10, background: "rgba(0,0,0,0.5)", padding: "4px 8px", fontSize: "12px" }}
-                title={isExpanded ? "Close fullscreen" : "Expand fullscreen"}
-            >
-                {isExpanded ? "✖ Close" : "⛶ Expand"}
-            </button>
-
             {/* Primary view */}
-            <div style={{ position: "relative", flex: isExpanded ? 1 : "none", aspectRatio: isExpanded ? "auto" : "16/9", background: "#0a0a12", minHeight: 0 }}>
+            <div style={{ position: "relative", aspectRatio: "16/9", background: "#0a0a12", minHeight: 0 }}>
                 {primaryView === "screen" ? (
                     screenTrack ? (
                         <video key="screen" ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }} />
@@ -173,8 +146,8 @@ export default function CandidatePanel({
 
                 {/* Picture-in-Picture */}
                 <div style={{
-                    position: "absolute", bottom: isExpanded ? "20px" : "10px", right: isExpanded ? "20px" : "10px",
-                    width: isExpanded ? "240px" : "100px", height: isExpanded ? "180px" : "75px",
+                    position: "absolute", bottom: "10px", right: "10px",
+                    width: "100px", height: "75px",
                     background: "#000",
                     borderRadius: "8px",
                     overflow: "hidden",

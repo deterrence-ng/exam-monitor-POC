@@ -35,7 +35,6 @@ export default function MonitorPage() {
     const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
     const [unread, setUnread] = useState<Record<string, boolean>>({});
     const [micRequests, setMicRequests] = useState<Record<string, boolean>>({});
-    const [expandedId, setExpandedId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const audioTargetRef = useRef(audioTarget);
@@ -295,8 +294,6 @@ export default function MonitorPage() {
                                     }
                                 }}
                                 isTarget={audioTarget === p.identity}
-                                isExpanded={expandedId === p.identity}
-                                onToggleExpand={() => setExpandedId(prev => prev === p.identity ? null : p.identity)}
                                 hasUnread={unread[p.identity]}
                                 micRequested={micRequests[p.identity]}
                             />
