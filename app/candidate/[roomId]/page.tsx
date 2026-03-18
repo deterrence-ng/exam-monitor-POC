@@ -150,9 +150,24 @@ export default function CandidatePage() {
         const el = audioRef.current;
         if (monitorAudioTrack && el) {
             monitorAudioTrack.attach(el);
+            // Ensure volume and muted state are strictly synced via DOM when attaching
+            el.muted = monitorMuted;
+            if ('setVolume' in monitorAudioTrack && typeof monitorAudioTrack.setVolume === 'function') {
+                (monitorAudioTrack as any).setVolume(monitorMuted ? 0 : 1);
+            }
             return () => { monitorAudioTrack.detach(el); };
         }
-    }, [monitorAudioTrack]);
+    }, [monitorAudioTrack, monitorMuted]);
+
+    // Force React to correctly update the native muted property whenever it changes
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.muted = monitorMuted;
+        }
+        if (monitorAudioTrack && 'setVolume' in monitorAudioTrack && typeof monitorAudioTrack.setVolume === 'function') {
+            (monitorAudioTrack as any).setVolume(monitorMuted ? 0 : 1);
+        }
+    }, [monitorMuted, monitorAudioTrack]);
 
     useEffect(() => {
         chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
     Room,
@@ -29,7 +29,6 @@ export default function MonitorPage() {
     const [audioTarget, setAudioTarget] = useState<"none" | "all" | string>("none");
     const [candidates, setCandidates] = useState<RemoteParticipant[]>([]);
     const [micStates, setMicStates] = useState<Record<string, boolean>>({});
-    // warn modal state
     const [warnTarget, setWarnTarget] = useState<RemoteParticipant | null>(null);
     // chat state
     const [chatTarget, setChatTarget] = useState<RemoteParticipant | null>(null);
@@ -37,6 +36,9 @@ export default function MonitorPage() {
     const [unread, setUnread] = useState<Record<string, boolean>>({});
     const [micRequests, setMicRequests] = useState<Record<string, boolean>>({});
     const [error, setError] = useState<string | null>(null);
+
+    const audioTargetRef = useRef(audioTarget);
+    useEffect(() => { audioTargetRef.current = audioTarget; }, [audioTarget]);
 
     // Sync candidates list (exclude monitor itself)
     const syncCandidates = useCallback(() => {
@@ -64,7 +66,15 @@ export default function MonitorPage() {
                 const data = await res.json();
                 token = data.token;
 
-                room.on(RoomEvent.ParticipantConnected, syncCandidates);
+                room.on(RoomEvent.ParticipantConnected, (p) => {
+                    syncCandidates();
+                    // Sync current monitor target state to the late joiner
+                    const payload = JSON.stringify({ type: "monitor_target", target: audioTargetRef.current });
+                    room.localParticipant.publishData(new TextEncoder().encode(payload), { 
+                        reliable: true,
+                        destinationIdentities: [p.identity]
+                    }).catch(() => {});
+                });
                 room.on(RoomEvent.ParticipantDisconnected, syncCandidates);
                 room.on(RoomEvent.TrackSubscribed, syncCandidates);
                 room.on(RoomEvent.DataReceived, handleDataReceived);
