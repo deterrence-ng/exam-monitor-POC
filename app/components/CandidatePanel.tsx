@@ -12,8 +12,10 @@ interface CandidatePanelProps {
     onChat: () => void;
     onTarget: () => void;
     onKick?: () => void;
+    onToggleExpand?: () => void;
     hasUnread?: boolean;
     isTarget?: boolean;
+    isExpanded?: boolean;
     micRequested?: boolean;
 }
 
@@ -26,8 +28,10 @@ export default function CandidatePanel({
     onChat,
     onTarget,
     onKick,
+    onToggleExpand,
     hasUnread,
     isTarget,
+    isExpanded,
     micRequested,
 }: CandidatePanelProps) {
     const cameraRef = useRef<HTMLVideoElement>(null);
@@ -37,6 +41,7 @@ export default function CandidatePanel({
     const [screenTrack, setScreenTrack] = useState<TrackPublication | null>(null);
     const [audioTrack, setAudioTrack] = useState<TrackPublication | null>(null);
     const [speaking, setSpeaking] = useState(false);
+    const [primaryView, setPrimaryView] = useState<"screen" | "camera">("screen");
 
     // Rebuilds track state from scratch each call — handles both subscribe AND unsubscribe
     const syncTracks = useCallback(() => {
@@ -100,59 +105,109 @@ export default function CandidatePanel({
         }
     }, [audioTrack]);
 
-    return (
+    const containerStyle: React.CSSProperties = isExpanded
+        ? {
+              position: "fixed",
+              top: "24px", left: "24px", right: "24px", bottom: "24px",
+              zIndex: 100,
+              background: "var(--bg-card)",
+              border: speaking ? "2px solid var(--success)" : "1px solid var(--border)",
+              borderRadius: "16px",
+              boxShadow: speaking ? "0 0 40px rgba(34,197,94,0.2)" : "0 10px 50px rgba(0,0,0,0.6)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+          }
+        : {
+              background: "var(--bg-card)",
+              border: speaking ? "1px solid var(--success)" : "1px solid var(--border)",
+              borderRadius: "16px",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              transition: "border-color 0.3s",
+              boxShadow: speaking ? "0 0 20px rgba(34,197,94,0.15)" : "var(--shadow-card)",
+          };
+
+    const EmptyView = ({ icon, text, isPip }: { icon: string; text?: string, isPip?: boolean }) => (
         <div style={{
-            background: "var(--bg-card)",
-            border: speaking ? "1px solid var(--success)" : "1px solid var(--border)",
-            borderRadius: "16px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            transition: "border-color 0.3s",
-            boxShadow: speaking ? "0 0 20px rgba(34,197,94,0.15)" : "var(--shadow-card)",
+            width: "100%", height: "100%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text-muted)", fontSize: "13px", flexDirection: "column", gap: "8px",
         }}>
+            <span style={{ fontSize: isPip ? "20px" : "24px", opacity: 0.4 }}>{icon}</span>
+            {!isPip && text && <span>{text}</span>}
+        </div>
+    );
+
+    return (
+        <div style={containerStyle}>
             {/* Hidden audio element — NOT muted, used to play candidate mic audio */}
             <audio ref={audioRef} autoPlay style={{ display: "none" }} />
 
-            {/* Screen share — primary view */}
-            <div style={{ position: "relative", aspectRatio: "16/9", background: "#0a0a12" }}>
-                {screenTrack ? (
-                    <video
-                        ref={screenRef}
-                        autoPlay muted playsInline
-                        style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                    />
+            {/* Expander Button */}
+            <button
+                onClick={onToggleExpand}
+                className="btn-ghost"
+                style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10, background: "rgba(0,0,0,0.5)", padding: "4px 8px", fontSize: "12px" }}
+                title={isExpanded ? "Close fullscreen" : "Expand fullscreen"}
+            >
+                {isExpanded ? "✖ Close" : "⛶ Expand"}
+            </button>
+
+            {/* Primary view */}
+            <div style={{ position: "relative", flex: isExpanded ? 1 : "none", aspectRatio: isExpanded ? "auto" : "16/9", background: "#0a0a12", minHeight: 0 }}>
+                {primaryView === "screen" ? (
+                    screenTrack ? (
+                        <video key="screen" ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    ) : (
+                        <EmptyView icon="🖥️" text="No screen share" />
+                    )
                 ) : (
-                    <div style={{
-                        width: "100%", height: "100%",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: "var(--text-muted)", fontSize: "13px", flexDirection: "column", gap: "8px",
-                    }}>
-                        <span style={{ fontSize: "24px", opacity: 0.4 }}>🖥️</span>
-                        <span>No screen share</span>
-                    </div>
+                    cameraTrack ? (
+                        <video key="camera" ref={cameraRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    ) : (
+                        <EmptyView icon="🎓" text="No camera" />
+                    )
                 )}
 
-                {/* Camera pip */}
+                {/* Picture-in-Picture */}
                 <div style={{
-                    position: "absolute", bottom: "10px", right: "10px",
-                    width: "100px", height: "75px",
+                    position: "absolute", bottom: isExpanded ? "20px" : "10px", right: isExpanded ? "20px" : "10px",
+                    width: isExpanded ? "240px" : "100px", height: isExpanded ? "180px" : "75px",
                     background: "#000",
                     borderRadius: "8px",
                     overflow: "hidden",
                     border: "2px solid rgba(255,255,255,0.1)",
                     boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+                    zIndex: 5
                 }}>
-                    {cameraTrack ? (
-                        <video ref={cameraRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button
+                        onClick={() => setPrimaryView(v => v === "screen" ? "camera" : "screen")}
+                        style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", background: "transparent", border: "none", cursor: "pointer", zIndex: 2 }}
+                        title="Swap views"
+                    >
+                        <span style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(0,0,0,0.6)", padding: "2px 4px", borderRadius: "4px", fontSize: "10px", pointerEvents: "none" }}>🔄</span>
+                    </button>
+                    
+                    {primaryView === "screen" ? (
+                        cameraTrack ? (
+                            <video key="camera-pip" ref={cameraRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                            <EmptyView icon="🎓" isPip />
+                        )
                     ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🎓</div>
+                        screenTrack ? (
+                            <video key="screen-pip" ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                            <EmptyView icon="🖥️" isPip />
+                        )
                     )}
                 </div>
 
                 {/* Speaking indicator */}
                 {speaking && (
-                    <div style={{ position: "absolute", top: "10px", left: "10px" }}>
+                    <div style={{ position: "absolute", top: "10px", left: "10px", zIndex: 5 }}>
                         <span className="pill pill-success"><span className="dot dot-green" />Speaking</span>
                     </div>
                 )}
