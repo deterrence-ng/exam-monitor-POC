@@ -83,6 +83,10 @@ export default function MonitorPage() {
         connect();
 
         return () => {
+            room.off(RoomEvent.ParticipantConnected, syncCandidates);
+            room.off(RoomEvent.ParticipantDisconnected, syncCandidates);
+            room.off(RoomEvent.TrackSubscribed, syncCandidates);
+            room.off(RoomEvent.DataReceived, handleDataReceived);
             room.disconnect();
         };
     }, [roomId, username]);

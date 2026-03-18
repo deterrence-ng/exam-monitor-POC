@@ -60,12 +60,14 @@ export default function CandidatePanel({
 
     useEffect(() => {
         syncTracks();
+        const handleSpeaking = (s: boolean) => setSpeaking(s);
         participant.on("trackSubscribed", syncTracks);
         participant.on("trackUnsubscribed", syncTracks);
-        participant.on("isSpeakingChanged", (s: boolean) => setSpeaking(s));
+        participant.on("isSpeakingChanged", handleSpeaking);
         return () => {
             participant.off("trackSubscribed", syncTracks);
             participant.off("trackUnsubscribed", syncTracks);
+            participant.off("isSpeakingChanged", handleSpeaking);
         };
     }, [participant, syncTracks]);
 

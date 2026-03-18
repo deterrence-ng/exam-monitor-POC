@@ -78,6 +78,30 @@ export default function CandidatePage() {
     );
 
     useEffect(() => {
+        const onTrackSubscribed = (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
+            let isMonitor = false;
+            try {
+                const meta = JSON.parse(participant?.metadata || '{}');
+                isMonitor = meta.role === "monitor";
+            } catch { }
+
+            if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
+                setMonitorAudioTrack(track);
+            }
+        };
+
+        const onTrackUnsubscribed = (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
+            let isMonitor = false;
+            try {
+                const meta = JSON.parse(participant?.metadata || '{}');
+                isMonitor = meta.role === "monitor";
+            } catch { }
+
+            if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
+                setMonitorAudioTrack(null);
+            }
+        };
+
         async function connect() {
             try {
                 const res = await fetch(
@@ -86,28 +110,8 @@ export default function CandidatePage() {
                 const data = await res.json();
 
                 room.on(RoomEvent.DataReceived, handleDataReceived);
-                room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
-                    let isMonitor = false;
-                    try {
-                        const meta = JSON.parse(participant?.metadata || '{}');
-                        isMonitor = meta.role === "monitor";
-                    } catch { }
-
-                    if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
-                        setMonitorAudioTrack(track);
-                    }
-                });
-                room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: any, participant?: RemoteParticipant) => {
-                    let isMonitor = false;
-                    try {
-                        const meta = JSON.parse(participant?.metadata || '{}');
-                        isMonitor = meta.role === "monitor";
-                    } catch { }
-
-                    if (track.kind === "audio" && (isMonitor || (participant?.identity?.toLowerCase().startsWith("monitor") ?? false))) {
-                        setMonitorAudioTrack(null);
-                    }
-                });
+                room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+                room.on(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed);
 
                 await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, data.token, {
                     autoSubscribe: true,
@@ -123,7 +127,12 @@ export default function CandidatePage() {
             }
         }
         connect();
-        return () => { room.disconnect(); };
+        return () => {
+            room.off(RoomEvent.DataReceived, handleDataReceived);
+            room.off(RoomEvent.TrackSubscribed, onTrackSubscribed);
+            room.off(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed);
+            room.disconnect();
+        };
     }, [roomId, username]);
 
     // Attach local camera preview
