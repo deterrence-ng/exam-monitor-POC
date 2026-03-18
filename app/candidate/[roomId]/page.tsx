@@ -112,6 +112,10 @@ export default function CandidatePage() {
                 room.on(RoomEvent.DataReceived, handleDataReceived);
                 room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
                 room.on(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed);
+                room.on(RoomEvent.Disconnected, () => {
+                    setConnected(false);
+                    setError("You have been removed from the exam session.");
+                });
 
                 await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, data.token, {
                     autoSubscribe: true,

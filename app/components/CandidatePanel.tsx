@@ -11,6 +11,7 @@ interface CandidatePanelProps {
     onWarn: () => void;
     onChat: () => void;
     onTarget: () => void;
+    onKick?: () => void;
     hasUnread?: boolean;
     isTarget?: boolean;
     micRequested?: boolean;
@@ -24,6 +25,7 @@ export default function CandidatePanel({
     onWarn,
     onChat,
     onTarget,
+    onKick,
     hasUnread,
     isTarget,
     micRequested,
@@ -183,6 +185,18 @@ export default function CandidatePanel({
                     title="Send warning"
                 >
                     ⚠️
+                </button>
+
+                <button
+                    id={`kick-${participant.identity}`}
+                    className="btn-danger"
+                    onClick={() => {
+                        if (confirm(`Remove ${participant.identity}?`)) onKick?.();
+                    }}
+                    style={{ padding: "7px 12px", fontSize: "11px" }}
+                    title="Kick candidate"
+                >
+                    ⛔
                 </button>
 
                 <button

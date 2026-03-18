@@ -282,6 +282,17 @@ export default function MonitorPage() {
                                     setUnread((prev) => ({ ...prev, [p.identity]: false }));
                                 }}
                                 onTarget={() => toggleAudioTarget(p.identity)}
+                                onKick={async () => {
+                                    try {
+                                        await fetch("/api/kickout", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ room: roomId, participantIdentity: p.identity })
+                                        });
+                                    } catch (err) {
+                                        console.error("Failed to kick participant", err);
+                                    }
+                                }}
                                 isTarget={audioTarget === p.identity}
                                 hasUnread={unread[p.identity]}
                                 micRequested={micRequests[p.identity]}
