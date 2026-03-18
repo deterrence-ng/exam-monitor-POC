@@ -137,18 +137,20 @@ export default function CandidatePage() {
 
     // Attach local camera preview
     useEffect(() => {
+        const el = cameraRef.current;
         const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-        if (camPub?.videoTrack && cameraRef.current) {
-            camPub.videoTrack.attach(cameraRef.current);
-            return () => { camPub.videoTrack?.detach(); };
+        if (camPub?.videoTrack && el) {
+            camPub.videoTrack.attach(el);
+            return () => { camPub.videoTrack?.detach(el); };
         }
     }, [cameraOn, room]);
 
     // Attach monitor audio
     useEffect(() => {
-        if (monitorAudioTrack && audioRef.current) {
-            monitorAudioTrack.attach(audioRef.current);
-            return () => { monitorAudioTrack.detach(); };
+        const el = audioRef.current;
+        if (monitorAudioTrack && el) {
+            monitorAudioTrack.attach(el);
+            return () => { monitorAudioTrack.detach(el); };
         }
     }, [monitorAudioTrack]);
 

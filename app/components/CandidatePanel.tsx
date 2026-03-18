@@ -73,25 +73,28 @@ export default function CandidatePanel({
 
     // Attach camera video
     useEffect(() => {
-        if (cameraTrack?.videoTrack && cameraRef.current) {
-            cameraTrack.videoTrack.attach(cameraRef.current);
-            return () => { cameraTrack.videoTrack?.detach(); };
+        const el = cameraRef.current;
+        if (cameraTrack?.videoTrack && el) {
+            cameraTrack.videoTrack.attach(el);
+            return () => { cameraTrack.videoTrack?.detach(el); };
         }
     }, [cameraTrack]);
 
     // Attach screen share video
     useEffect(() => {
-        if (screenTrack?.videoTrack && screenRef.current) {
-            screenTrack.videoTrack.attach(screenRef.current);
-            return () => { screenTrack.videoTrack?.detach(); };
+        const el = screenRef.current;
+        if (screenTrack?.videoTrack && el) {
+            screenTrack.videoTrack.attach(el);
+            return () => { screenTrack.videoTrack?.detach(el); };
         }
     }, [screenTrack]);
 
     // Attach audio — element must NOT be muted
     useEffect(() => {
-        if (audioTrack?.audioTrack && audioRef.current) {
-            audioTrack.audioTrack.attach(audioRef.current);
-            return () => { audioTrack.audioTrack?.detach(); };
+        const el = audioRef.current;
+        if (audioTrack?.audioTrack && el) {
+            audioTrack.audioTrack.attach(el);
+            return () => { audioTrack.audioTrack?.detach(el); };
         }
     }, [audioTrack]);
 
